@@ -185,6 +185,9 @@ footer{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--d
 @media (prefers-reduced-motion:reduce){.tel-alert b,.interrupt.blink b{animation:none}}
 .ctl-row{display:flex;flex-wrap:wrap;gap:10px}
 .snd-btn{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);background:transparent;border:1px solid var(--line);padding:9px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:10px}
+.mu-btn{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);background:transparent;border:1px solid var(--line);padding:9px 14px;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.mu-btn::before{content:">";color:var(--dim)}
+.mu-btn:hover,.mu-btn:focus-visible{border-color:var(--amber);outline:none}
 .snd-btn::before{content:"";width:10px;height:10px;background:currentColor;clip-path:polygon(0 30%,35% 30%,75% 0,75% 100%,35% 70%,0 70%)}
 .snd-btn[aria-pressed="true"]{color:var(--amber);border-color:var(--amber)}
 .snd-btn:hover,.snd-btn:focus-visible{color:var(--amber);border-color:var(--amber);outline:none}
@@ -199,7 +202,7 @@ footer{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--d
     <div class="interrupt" id="interrupt" hidden><b>MU/TH/UR · Priority interrupt</b><span id="interrupt-txt"></span></div>
     <h1>Nostromo Movie Night</h1>
     <p class="sub">You're on the crew manifest. <b>Alien</b> and <b>Aliens</b>, back to back on the big screen. <b>Saturday, April 24, 2027.</b> Doors at 4:30 PM.</p>
-    <div class="ctl-row"><button class="tel-btn" id="tel-open" type="button">View telemetry</button><button class="snd-btn" id="snd-btn" type="button" aria-pressed="false">Ship audio · Off</button></div>
+    <div class="ctl-row"><button class="tel-btn" id="tel-open" type="button">View telemetry</button><a class="mu-btn" href="mother/">Interface with MU/TH/UR</a><button class="snd-btn" id="snd-btn" type="button" aria-pressed="false">Ship audio · Off</button></div>
 
     <div class="eta" role="timer" aria-label="Time until the first film starts">
       <div class="eta-top"><span>Time to destination</span><span id="eta-dest">Dest <b>Sol</b> · Return course</span></div>
