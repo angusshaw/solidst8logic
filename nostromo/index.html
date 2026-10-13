@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Nostromo Movie Night</title>
+<meta name="description" content="Alien and Aliens double feature. Saturday, April 24, 2027. Follow the Nostromo home.">
+<meta property="og:title" content="Nostromo Movie Night">
+<meta property="og:description" content="Alien and Aliens double feature. Saturday, April 24, 2027. Follow the Nostromo home.">
+<meta name="theme-color" content="#0d0f0e">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: ship interface for the crew. Countdown, star map, ship status, onboard log, then the mission profile. */
+:root{
+  --hull:#0d0f0e;
+  --panel:#151816;
+  --line:#2a2f2b;
+  --text:#d9dcd4;
+  --dim:#8b9188;
+  --amber:#f2a93b;
+  --alert:#e0533d;
+  --ok:#8cc084;
+  --display:"Michroma","Arial Narrow",sans-serif;
+  --body:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--hull);color:var(--text)}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font-family:var(--body);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:28px 64px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:36px}
+header,.stack{display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,6vw,40px);line-height:1.15;letter-spacing:.06em;margin:0;text-wrap:balance;text-transform:uppercase}
+.sub{color:var(--dim);margin:0;max-width:60ch}
+.sub b{color:var(--text);font-weight:500}
+
+.eta{border:1px solid var(--amber);background:var(--panel);padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+.eta::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom,transparent 0 2px,rgba(0,0,0,.22) 2px 3px)}
+.eta-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.eta-top b{color:var(--amber);font-weight:500}
+.clock{display:flex;align-items:flex-start;justify-content:center;gap:clamp(4px,1.5vw,12px);font-family:var(--mono);color:var(--amber);text-shadow:0 0 8px rgba(242,169,59,.55),0 0 22px rgba(242,169,59,.25)}
+.unit{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.unit b{font-weight:500;font-size:clamp(30px,10vw,64px);line-height:1;font-variant-numeric:tabular-nums}
+.unit span{font-size:10px;letter-spacing:.18em;color:var(--dim);text-shadow:none}
+.sep{font-size:clamp(30px,10vw,64px);line-height:1;opacity:.8;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:.2}}
+.eta-bottom{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);text-align:center}
+
+.map{border:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
+.map canvas{display:block;width:100%;aspect-ratio:16/8;max-width:100%}
+.map-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:10px 14px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-variant-numeric:tabular-nums}
+.map-meta b{color:var(--amber);font-weight:500}
+
+.status-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.status-grid div{background:var(--panel);padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.status-grid span{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.status-grid b{font-family:var(--mono);font-weight:500;font-size:14px;color:var(--text);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;display:flex;align-items:center;gap:8px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none;box-shadow:0 0 6px var(--ok)}
+.dot.amber{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.dot.alert{background:var(--alert);box-shadow:0 0 6px var(--alert);animation:blink 1.2s steps(1) infinite}
+
+.section-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.section-head h2{font-family:var(--display);font-weight:400;font-size:15px;letter-spacing:.1em;text-transform:uppercase;margin:0}
+.section-head .when{font-family:var(--mono);font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+
+.log{border:1px solid var(--line);background:var(--panel);font-family:var(--mono);font-size:13px;padding:6px 0;position:relative;overflow:hidden}
+.log::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom,transparent 0 2px,rgba(0,0,0,.18) 2px 3px)}
+.log ol{list-style:none;margin:0;padding:0}
+.log li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;padding:7px 14px}
+.log time{color:var(--dim);white-space:nowrap;font-variant-numeric:tabular-nums}
+.log li.latest span{color:var(--amber)}
+.log li.pending span{color:var(--dim)}
+.log li.alert span{color:var(--alert)}
+.log li.alert .cursor{background:var(--alert)}
+.cursor{display:inline-block;width:.6em;height:1em;background:var(--amber);vertical-align:-2px;margin-left:4px;animation:blink 1s steps(1) infinite}
+
+.profile{border:1px solid var(--line);background:var(--panel)}
+.profile table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.profile td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+.profile tr:last-child td{border-bottom:0}
+.profile td:first-child{font-family:var(--mono);color:var(--amber);white-space:nowrap;width:1%}
+.profile small{display:block;color:var(--dim);font-size:13.5px}
+
+.orders{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.orders div{background:var(--panel);padding:14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.orders h3{margin:0;font-family:var(--mono);font-weight:500;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+.orders p{margin:0;font-size:14px}
+
+footer{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);border-top:1px solid var(--line);padding-top:14px}
+
+.tel-btn{align-self:flex-start;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);background:transparent;border:1px solid var(--amber);padding:9px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:10px}
+.tel-btn::before{content:"";width:0;height:0;border-left:7px solid var(--amber);border-top:4.5px solid transparent;border-bottom:4.5px solid transparent}
+.tel-btn:hover,.tel-btn:focus-visible{background:var(--amber);color:var(--hull);outline:none}
+.tel-btn:hover::before,.tel-btn:focus-visible::before{border-left-color:var(--hull)}
+
+/* Telemetry monitor: full-screen CRT. Nav plot top left, countdown and systems top right, scopes and chambers below, MU/TH/UR line at the foot. */
+.tel{position:fixed;inset:0;z-index:100;background:#050605;color:var(--text);font-family:var(--mono);font-size:clamp(11px,1.55vmin,24px);
+  display:grid;gap:1.1vmin;padding:max(1.6vmin,10px);
+  grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);
+  grid-template-rows:auto minmax(0,1fr) minmax(0,.5fr) auto;
+  grid-template-areas:"top top top" "map map side" "wave sig pods" "tick tick tick";
+  animation:flick 6s infinite}
+.tel[hidden]{display:none!important}
+.tel::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:2;
+  background:repeating-linear-gradient(to bottom,transparent 0 2px,rgba(0,0,0,.28) 2px 3px),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.65) 100%)}
+@keyframes flick{0%,100%{opacity:1}47%{opacity:1}48%{opacity:.94}49%{opacity:1}}
+.tel.idle{cursor:none}
+.tel-top{grid-area:top;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6em 1.6em;color:var(--amber);letter-spacing:.14em;text-transform:uppercase;border-bottom:1px solid var(--amber);padding-bottom:.7vmin;text-shadow:0 0 6px rgba(242,169,59,.5)}
+.tel-top b{font-weight:500;font-variant-numeric:tabular-nums}
+.tel-top .r{display:flex;align-items:center;gap:1.4em;margin-left:auto}
+.tel-close{position:relative;z-index:3;font:inherit;font-size:.8em;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);background:transparent;border:1px solid var(--line);padding:.35em .8em;cursor:pointer;transition:opacity .4s}
+.tel-close:hover,.tel-close:focus-visible{color:var(--amber);border-color:var(--amber);outline:none}
+.tel.idle .tel-close{opacity:0}
+.tp{border:1px solid #3a3122;background:#0a0c0a;display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
+.tp-h{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.3em 1em;padding:.55em .8em;border-bottom:1px solid #3a3122;color:var(--dim);font-size:.78em;letter-spacing:.16em;text-transform:uppercase}
+.tp-h b{color:var(--amber);font-weight:500}
+.tp-h b.al,.tp-h .al{color:var(--alert)}
+.tp canvas{display:block;width:100%;flex:1;min-height:0}
+.tel-map{grid-area:map}
+.tel-side{grid-area:side;display:flex;flex-direction:column;gap:1.1vmin;min-height:0}
+.tel-eta .t-clock{display:flex;justify-content:center;align-items:flex-start;gap:.25em;padding:.7em .5em .9em;color:var(--amber);text-shadow:0 0 10px rgba(242,169,59,.6),0 0 26px rgba(242,169,59,.25)}
+.t-u{display:flex;flex-direction:column;align-items:center;gap:.3em}
+.t-u b{font-weight:500;font-size:clamp(26px,6.2vmin,120px);line-height:1;font-variant-numeric:tabular-nums}
+.t-u span{font-size:.7em;letter-spacing:.2em;color:var(--dim);text-shadow:none}
+.t-s{font-size:clamp(26px,6.2vmin,120px);line-height:1;opacity:.8;animation:blink 1s steps(1) infinite}
+.t-rows{display:flex;flex-direction:column;padding:.4em .8em .6em;flex:1;justify-content:space-around;min-height:0}
+.t-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.15em 1em;align-items:baseline;padding:.25em 0}
+.t-row span{color:var(--dim);letter-spacing:.1em;text-transform:uppercase;font-size:.82em}
+.t-row b{font-weight:500;color:var(--text);font-variant-numeric:tabular-nums;text-align:right}
+.t-row i{grid-column:1 / -1;height:3px;background:#1d221e;position:relative;display:block}
+.t-row i::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--v,0%);background:var(--amber);box-shadow:0 0 6px rgba(242,169,59,.6)}
+.t-row.al b{color:var(--alert)}
+.t-row.al i::after{background:var(--alert);box-shadow:0 0 6px var(--alert)}
+.tel-wave{grid-area:wave}.tel-sig{grid-area:sig}.tel-pods{grid-area:pods}
+.pods{flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.6em;padding:.9em .9em 1em;align-items:stretch;min-height:0}
+.pod{border:1px solid var(--amber);border-radius:999px;position:relative;min-height:2.5em;display:flex;align-items:flex-end;justify-content:center;padding-bottom:.4em;font-size:.72em;color:var(--dim)}
+.pod.occ{background:linear-gradient(to top,rgba(242,169,59,.35),rgba(242,169,59,.05));box-shadow:inset 0 0 10px rgba(242,169,59,.35)}
+.pod.occ::before{content:"";position:absolute;left:50%;top:22%;width:28%;aspect-ratio:1;border-radius:50%;transform:translateX(-50%);background:var(--amber);opacity:.7;animation:breathe 5s ease-in-out infinite}
+.pod:not(.occ){border-color:var(--line)}
+@keyframes breathe{50%{opacity:.25}}
+.tel-tick{grid-area:tick;border-top:1px solid var(--amber);padding-top:.7vmin;color:var(--amber);letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 0 6px rgba(242,169,59,.5)}
+.tel-tick .t-prompt{color:var(--dim)}
+.tel-tick.al{color:var(--alert)}
+.tel-hint{position:absolute;right:1em;bottom:.8em;font-size:.7em;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;z-index:3;transition:opacity .4s}
+.tel.idle .tel-hint,.tel.fs .tel-hint{opacity:0}
+@media (max-aspect-ratio:1/1){
+  .tel{overflow-y:auto;grid-template-columns:minmax(0,1fr);grid-template-rows:auto;font-size:13px;
+    grid-template-areas:"top" "side" "map" "wave" "sig" "pods" "tick"}
+  .tel-map canvas{height:55vw;flex:none}
+  .tel-wave canvas,.tel-sig canvas{height:90px;flex:none}
+  .tel::after{position:fixed}
+  .tel .tp,.tel-side{min-height:auto}
+  .tel-side>.tp{flex:none!important}
+  .t-rows{flex:none}
+  .pods{min-height:7em}
+}
+@media (prefers-reduced-motion:reduce){.tel,.t-s,.pod.occ::before{animation:none}}
+
+.interrupt{border:1px solid var(--alert);color:var(--alert);font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;padding:10px 12px;display:flex;flex-wrap:wrap;gap:4px 14px;background:rgba(224,83,61,.08)}
+.interrupt.blink b{animation:blink 1.2s steps(1) infinite}
+.tel-alert{position:absolute;z-index:4;left:50%;top:42%;transform:translate(-50%,-50%);border:2px solid var(--alert);background:rgba(10,4,3,.92);color:var(--alert);padding:1.4em 2.2em;display:flex;flex-direction:column;align-items:center;gap:.5em;text-align:center;letter-spacing:.18em;text-transform:uppercase;box-shadow:0 0 30px rgba(224,83,61,.35);max-width:90vw}
+.tel-alert b{font-weight:500;font-size:1.6em;animation:blink 1s steps(1) infinite}
+.tel-alert span{color:var(--text);font-size:.9em}
+@media (prefers-reduced-motion:reduce){.tel-alert b,.interrupt.blink b{animation:none}}
+@media (max-width:640px){.status-grid{grid-template-columns:1fr 1fr}.orders{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.sep,.cursor,.dot.alert{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Commercial towing vehicle Nostromo · Reg. 180924609</div>
+    <div class="interrupt" id="interrupt" hidden><b>MU/TH/UR · Priority interrupt</b><span id="interrupt-txt"></span></div>
+    <h1>Nostromo Movie Night</h1>
+    <p class="sub">You're on the crew manifest. <b>Alien</b> and <b>Aliens</b>, back to back on the big screen. <b>Saturday, April 24, 2027.</b> Doors at 4:30 PM.</p>
+    <button class="tel-btn" id="tel-open" type="button">View telemetry</button>
+
+    <div class="eta" role="timer" aria-label="Time until the first film starts">
+      <div class="eta-top"><span>Time to destination</span><span id="eta-dest">Dest <b>Sol</b> · Return course</span></div>
+      <div class="clock">
+        <div class="unit"><b id="cd-d">000</b><span>Days</span></div><div class="sep">:</div>
+        <div class="unit"><b id="cd-h">00</b><span>Hrs</span></div><div class="sep">:</div>
+        <div class="unit"><b id="cd-m">00</b><span>Min</span></div><div class="sep">:</div>
+        <div class="unit"><b id="cd-s">00</b><span>Sec</span></div>
+      </div>
+      <div class="eta-bottom" id="cd-note">ETA 17:00 · Sat 24 Apr 2027 · Hypersleep in progress</div>
+    </div>
+
+    <div class="map">
+      <canvas id="map" role="img" aria-label="Star map showing the ship's course"></canvas>
+      <div class="map-meta"><span>Course <b>Thedus</b> to <b id="course-to">Sol</b></span><span><b id="map-pct">0.0%</b> traversed</span><span>Status <span id="map-status"><b>On course</b></span></span></div>
+    </div>
+
+    <div class="status-grid" aria-live="polite">
+      <div><span>Crew status</span><b><i class="dot" id="crew-dot"></i><span id="crew" style="font-size:14px;letter-spacing:0;text-transform:none;color:var(--text)">Hypersleep</span></b></div>
+      <div><span>Current leg</span><b id="leg">Departure burn</b></div>
+      <div><span>Signal</span><b><i class="dot" id="sig-dot"></i><span id="signal" style="font-size:14px;letter-spacing:0;text-transform:none;color:var(--text)">No contact</span></b></div>
+      <div><span>Ship time</span><b id="shiptime">00:00:00</b></div>
+    </div>
+  </header>
+
+  <section class="stack" aria-labelledby="log-h">
+    <div class="section-head"><h2 id="log-h">Onboard log</h2><span class="when" id="next-tx">Next entry pending</span></div>
+    <div class="log"><ol id="log"></ol></div>
+  </section>
+
+  <section class="stack" aria-labelledby="profile-h">
+    <div class="section-head"><h2 id="profile-h">Mission profile</h2><span class="when">Sat 24 Apr 2027</span></div>
+    <div class="profile"><table>
+      <tr><td>4:30 PM</td><td>Crew boarding<small>Arrive, grab a drink, costume photos.</small></td></tr>
+      <tr><td>5:00 PM</td><td>Feature one: Alien (1979)</td></tr>
+      <tr><td>7:00 PM</td><td>Hypersleep break<small>Dinner at the crew table and trivia round one.</small></td></tr>
+      <tr><td>7:45 PM</td><td>Feature two: Aliens (1986)</td></tr>
+      <tr><td>10:15 PM</td><td>Debrief<small>Trivia final and the Most Expendable Crew Member award.</small></td></tr>
+    </table></div>
+  </section>
+
+  <section class="stack" aria-labelledby="orders-h">
+    <div class="section-head"><h2 id="orders-h">Crew orders</h2><span class="when">Read before boarding</span></div>
+    <div class="orders">
+      <div><h3>Uniform</h3><p>Costumes encouraged, never required. Ship crew, colonial marines and synthetics all welcome.</p></div>
+      <div><h3>Rations</h3><p>Dinner and drinks are provided. Let the captain know about any dietary needs when you RSVP.</p></div>
+      <div><h3>Confirm berth</h3><p>Please RSVP by April 10. Seating is limited and every seat has your name on it.</p></div>
+    </div>
+  </section>
+
+  <footer>Docking coordinates are in your invitation. Fan-made party page, not affiliated with any studio.</footer>
+</div>
+
+<div class="tel" id="tel" hidden role="dialog" aria-modal="true" aria-label="Ship telemetry">
+  <div class="tel-top">
+    <span>Nostromo 180924609 · MU/TH/UR 6000 · Telemetry</span>
+    <span class="r"><span id="t-date">--</span><b id="t-clock">00:00:00</b><button class="tel-close" id="tel-close" type="button">Exit telemetry</button></span>
+  </div>
+  <div class="tp tel-map">
+    <div class="tp-h"><span>Navigation · Course plot</span><span>Dest <b id="t-dest">Sol</b> · <b id="t-course">Return course</b></span></div>
+    <canvas id="tel-map" aria-label="Course plot"></canvas>
+  </div>
+  <div class="tel-side">
+    <div class="tp tel-eta">
+      <div class="tp-h"><span>Time to destination</span><span><b id="t-pct">0%</b> traversed</span></div>
+      <div class="t-clock" role="timer">
+        <div class="t-u"><b id="t-d">000</b><span>Days</span></div><div class="t-s">:</div>
+        <div class="t-u"><b id="t-h">00</b><span>Hrs</span></div><div class="t-s">:</div>
+        <div class="t-u"><b id="t-m">00</b><span>Min</span></div><div class="t-s">:</div>
+        <div class="t-u"><b id="t-sec">00</b><span>Sec</span></div>
+      </div>
+    </div>
+    <div class="tp" style="flex:1;min-height:0">
+      <div class="tp-h"><span>Ship systems</span><b id="t-sys">Nominal</b></div>
+      <div class="t-rows" id="t-rows"></div>
+    </div>
+  </div>
+  <div class="tp tel-wave">
+    <div class="tp-h"><span>Drive harmonics</span><b id="t-drive">--</b></div>
+    <canvas id="t-wave"></canvas>
+  </div>
+  <div class="tp tel-sig">
+    <div class="tp-h"><span>Comms · Long range</span><b id="t-sigtxt">No contact</b></div>
+    <canvas id="t-sig"></canvas>
+  </div>
+  <div class="tp tel-pods">
+    <div class="tp-h"><span>Hypersleep chambers</span><b id="t-podtxt">7/7 occupied</b></div>
+    <div class="pods" id="t-pods"></div>
+  </div>
+  <div class="tel-tick" id="t-tickwrap"><span class="t-prompt">MU/TH/UR&gt;</span> <span id="t-tick"></span><i class="cursor" aria-hidden="true"></i></div>
+  <div class="tel-alert" id="t-alert" hidden role="alert"><b id="t-al1">Priority interrupt</b><span id="t-al2"></span><span id="t-al3"></span></div>
+  <div class="tel-hint" id="t-hint">Click anywhere for full screen · Esc to exit</div>
+</div>
+
+<script>
+/* Mission timeline */
+const DEPART = new Date(2026,3,26,0,0,0);                                /* Alien Day 2026: Nostromo leaves Thedus for Earth */
+const LAUNCH = new Date(2027,3,24,17,0,0);                               /* feature one starts: touchdown */
+const INTERCEPT = new Date(DEPART.getTime() + (LAUNCH - DEPART) / 2);    /* halfway: transmission of unknown origin */
+const ORIGIN = new Date(2026,10,1,9,0,0);                                /* source located, course plotted */
+const SLEEP = new Date(2026,10,2,12,0,0);                                /* crew back into hypersleep for the transit */
+const REVIVE = new Date(2027,3,17,8,0,0);                                /* crew revived for final approach */
+const phaseAt = d => d >= LAUNCH ? "landed" : d >= REVIVE ? "approach" : d >= ORIGIN ? "transit" : d >= INTERCEPT ? "unknown" : "cruise";
+const crewAwake = d => (d >= INTERCEPT && d < SLEEP) || d >= REVIVE;
+
+/* Onboard log. Entries unlock on their date; the third field marks a MU/TH/UR alert. */
+const LOG = [
+  [DEPART,                     "Nostromo departs Thedus with the ore refinery in tow. Course set for Earth. Crew entering hypersleep."],
+  [new Date(2026,5,1),         "Clear of the Thedus system. All systems nominal."],
+  [new Date(2026,7,15),        "Routine maintenance cycle complete. Refinery holding steady."],
+  [new Date(2026,9,15),        "Approaching the halfway point. Hypersleep stable. Course for Earth confirmed."],
+  [INTERCEPT,                  "MU/TH/UR has interrupted the course of our journey. Transmission of unknown origin. Crew revived to investigate.", "alert"],
+  [new Date(INTERCEPT.getTime() + 6*3600e3), "Transmission repeats every 12 seconds. Pattern not recognized. Triangulating the source."],
+  [new Date(2026,9,28),        "Bearing narrowing. Source lies in a nearby system, off our course."],
+  [ORIGIN,                     "Source located: planetoid LV-426, Zeta² Reticuli. Company contract requires investigation of any signal of possible intelligent origin. Course plotted.", "alert"],
+  [SLEEP,                      "Course burn complete. Crew returning to hypersleep for the transit."],
+  [new Date(2027,0,31),        "Engineering reports the theater deck is nearly complete."],
+  [new Date(2027,1,28),        "Save-the-date transmission sent to all crew."],
+  [new Date(2027,2,24),        "Boarding orders transmitted. Crew asked to confirm berths by April 10."],
+  [new Date(2027,3,10),        "Crew manifest locked. Berth assignments in progress."],
+  [REVIVE,                     "Crew revived for final approach. Entering the Zeta² Reticuli system."],
+  [new Date(2027,3,23),        "Galley stocked. Preparing for descent."],
+  [new Date(2027,3,24,16,30),  "Crew boarding. Proceed to the theater."],
+  [LAUNCH,                     "Touchdown on LV-426. Feature one is starting."],
+  [new Date(2027,3,24,18,15),  "SPECIAL ORDER 937. Science officer eyes only.", "alert"]
+];
+const LEGS = [
+  [DEPART, "Departed Thedus"],
+  [new Date(2026,5,1), "Return leg to Sol"],
+  [INTERCEPT, "Course interrupted"],
+  [ORIGIN, "Diverted to LV-426"],
+  [SLEEP, "Transit to Zeta² Reticuli"],
+  [REVIVE, "Final approach"],
+  [new Date(2027,3,23), "Descent prep"],
+  [LAUNCH, "Surface, LV-426"]
+];
+const WAYPOINTS = LOG.map(e => e[0]).filter(d => d > new Date(DEPART.getTime() + 864e5) && d < new Date(2027,3,24));
+
+const pad = (n,w) => String(n).padStart(w,"0");
+const fmtDate = d => `${pad(d.getDate(),2)} ${d.toLocaleDateString("en-US",{month:"short"}).toUpperCase()} ${d.getFullYear()}`;
+let logCount = -1;
+
+function renderLog(now){
+  const shown = LOG.filter(e => e[0] <= now);
+  if (shown.length === logCount) return;
+  logCount = shown.length;
+  const ol = document.getElementById("log");
+  ol.innerHTML = "";
+  shown.slice().reverse().forEach((e,i) => {
+    const li = document.createElement("li");
+    li.className = [i === 0 ? "latest" : "", e[2] ? "alert" : ""].join(" ").trim();
+    li.innerHTML = `<time>${fmtDate(e[0])}</time><span>${e[1]}${i===0?'<i class="cursor" aria-hidden="true"></i>':''}</span>`;
+    ol.appendChild(li);
+  });
+  const next = LOG.find(e => e[0] > now);
+  const li = document.createElement("li");
+  li.className = "pending";
+  li.innerHTML = `<time>${next ? fmtDate(next[0]) : "··· ··· ····"}</time><span>${next ? "Next scheduled log entry." : "End of log."}</span>`;
+  ol.appendChild(li);
+  const nt = document.getElementById("next-tx");
+  if (next) { const d = Math.ceil((next[0]-now)/86400000); nt.textContent = d <= 1 ? "Next entry within a day" : `Next entry in ${d} days`; }
+  else nt.textContent = "Log complete";
+}
+
+function signalState(now){
+  const ph = phaseAt(now);
+  if (ph === "cruise") return ["No contact", "dot"];
+  if (ph === "unknown") return ["Unknown origin", "dot alert"];
+  if (ph === "transit") return ["Source: LV-426", "dot amber"];
+  return ["Repeating, 12 s interval", "dot alert"];
+}
+
+function renderStatus(now, ms){
+  const ph = phaseAt(now);
+  const crew = document.getElementById("crew"), cd = document.getElementById("crew-dot");
+  if (ph === "landed") { crew.textContent = "Landing party"; cd.className = "dot amber"; }
+  else if (crewAwake(now)) { crew.textContent = "Awake"; cd.className = "dot amber"; }
+  else { crew.textContent = "Hypersleep"; cd.className = "dot"; }
+  document.getElementById("leg").textContent = LEGS.filter(l => l[0] <= now).pop()?.[1] || LEGS[0][1];
+  const [st, cls] = signalState(now);
+  document.getElementById("signal").textContent = st; document.getElementById("sig-dot").className = cls;
+  const ir = document.getElementById("interrupt");
+  ir.hidden = !(now >= INTERCEPT && ms > 0);
+  document.getElementById("interrupt-txt").textContent = ph === "unknown"
+    ? "Transmission of unknown origin. Course interrupted. Locating source."
+    : "Source located: LV-426. Course altered.";
+  const fresh = (now - INTERCEPT >= 0 && now - INTERCEPT < 72*3600e3) || (now - ORIGIN >= 0 && now - ORIGIN < 72*3600e3);
+  ir.classList.toggle("blink", fresh);
+  document.getElementById("shiptime").textContent = `${pad(now.getHours(),2)}:${pad(now.getMinutes(),2)}:${pad(now.getSeconds(),2)}`;
+}
+
+function tick(){
+  const now = new Date();
+  const ms = Math.max(0, LAUNCH - now);
+  const s = Math.floor(ms/1000);
+  document.getElementById("cd-d").textContent = pad(Math.floor(s/86400),3);
+  document.getElementById("cd-h").textContent = pad(Math.floor(s%86400/3600),2);
+  document.getElementById("cd-m").textContent = pad(Math.floor(s%3600/60),2);
+  document.getElementById("cd-s").textContent = pad(s%60,2);
+  if (ms === 0) document.getElementById("cd-note").textContent = "Touchdown · LV-426 · Wake the crew";
+  renderStatus(now, ms);
+  renderLog(now);
+  drawMap();
+}
+
+/* Star map. Return course from Thedus to Sol at a steady pace. At the halfway point MU/TH/UR intercepts a
+   transmission and the ship holds while the source is triangulated. Once the source is located the course
+   to LV-426 is plotted and the ship transits there, touching down when feature one starts. */
+const clamp01 = v => Math.min(1, Math.max(0, v));
+const frac = d => clamp01((d - DEPART) / (LAUNCH - DEPART));
+const fI = frac(INTERCEPT), fO = frac(ORIGIN);
+let cv = document.getElementById("map"), cx = cv.getContext("2d");
+const MAPS = [cv];
+let seed = 426; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
+const stars = Array.from({length:170}, () => ({x:rnd(), y:rnd(), r:rnd()<.9?.6+rnd()*.6:1.3+rnd(), a:.25+rnd()*.6}));
+const cubic = (Q,t) => { const u=1-t; return [0,1].map(k => u*u*u*Q[0][k] + 3*u*u*t*Q[1][k] + 3*u*t*t*Q[2][k] + t*t*t*Q[3][k]); };
+const mkLUT = fn => { const pts=[], cum=[]; let len=0, prev=fn(0); for (let i=0;i<=300;i++){ const p=fn(i/300); len+=Math.hypot((p[0]-prev[0])*2,p[1]-prev[1]); pts.push(p); cum.push(len); prev=p; } return {pts,cum}; };
+const at = (L,g) => { const tgt = clamp01(g) * L.cum[L.cum.length-1]; let i = L.cum.findIndex(c => c >= tgt); if (i < 0) i = L.pts.length-1; return [i, L.pts[i]]; };
+const ORIG = [[.92,.30],[.62,.00],[.30,1.02],[.05,.74]];   /* Thedus to Sol */
+const FULL = mkLUT(t => cubic(ORIG, t));
+const SPLIT = (() => { const tgt = fI*FULL.cum[FULL.cum.length-1]; const i = FULL.cum.findIndex(c => c >= tgt); return i < 0 ? FULL.pts.length-1 : i; })();
+const D = FULL.pts[SPLIT];                                  /* halfway: where the transmission is intercepted */
+const LV = [.28,.20];                                       /* off course, ahead of the ship: no backtracking */
+const LEG1 = mkLUT(t => FULL.pts[Math.round(t*SPLIT)]);
+const REST = mkLUT(t => FULL.pts[SPLIT + Math.round(t*(FULL.pts.length-1-SPLIT))]);
+const LEG2 = mkLUT(t => cubic([D,[D[0]-.10,D[1]+.02],[LV[0]+.08,LV[1]+.14],LV], t));
+const posAt = f => f < fI ? at(LEG1, f/fI)[1] : f < fO ? D : at(LEG2, (f-fO)/(1-fO))[1];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const setHTML = (id, html) => { const el = document.getElementById(id); if (el && el.innerHTML !== html) el.innerHTML = html; };
+const mapDate = d => `${String(d.getDate()).padStart(2,"0")} ${d.toLocaleDateString("en-US",{month:"short"}).toUpperCase()} ${d.getFullYear()}`;
+
+function drawMap(){ MAPS.forEach(c => { if (c.clientWidth && c.clientHeight) { cv = c; cx = c.getContext("2d"); drawMapOne(); } }); }
+function drawMapOne(){
+  const dpr = window.devicePixelRatio || 1, cw = cv.clientWidth, ch = cv.clientHeight;
+  if (cv.width !== Math.round(cw*dpr) || cv.height !== Math.round(ch*dpr)) { cv.width = Math.round(cw*dpr); cv.height = Math.round(ch*dpr); }
+  const k = cv.dataset.big ? Math.max(1, Math.min(cw/620, 2.6)) : 1, w = cw/k, h = ch/k;
+  cx.setTransform(dpr*k,0,0,dpr*k,0,0); cx.clearRect(0,0,w,h);
+  const amber = css("--amber"), dim = css("--dim"), text = css("--text"), line = css("--line"), alert = css("--alert");
+  const pd = 30, X = x => pd + x*(w-2*pd), Y = y => pd + y*(h-2*pd);
+  const now = new Date(), f = frac(now), heard = now >= INTERCEPT, found = now >= ORIGIN;
+  const font = '500 10px "IBM Plex Mono", monospace';
+
+  cx.strokeStyle = line; cx.lineWidth = 1; cx.globalAlpha = .5;
+  for (let i=1;i<8;i++){ const gx=i*w/8; cx.beginPath(); cx.moveTo(gx,0); cx.lineTo(gx,h); cx.stroke(); }
+  for (let i=1;i<4;i++){ const gy=i*h/4; cx.beginPath(); cx.moveTo(0,gy); cx.lineTo(w,gy); cx.stroke(); }
+  stars.forEach(s => { cx.globalAlpha = s.a; cx.fillStyle = text; cx.beginPath(); cx.arc(s.x*w, s.y*h, s.r, 0, 7); cx.fill(); });
+  cx.globalAlpha = 1;
+
+  const poly = (pts, col, width, dash, alpha) => {
+    if (pts.length < 2) return;
+    cx.save(); cx.globalAlpha = alpha ?? 1; cx.setLineDash(dash || []); cx.strokeStyle = col; cx.lineWidth = width; cx.beginPath();
+    pts.forEach((p,i) => i ? cx.lineTo(X(p[0]),Y(p[1])) : cx.moveTo(X(p[0]),Y(p[1]))); cx.stroke(); cx.restore();
+  };
+  const label = (x, y, l1, l2, align, c1, c2) => {
+    cx.font = font; cx.textAlign = align;
+    const tx = Math.min(Math.max(x, 6), w-6);
+    cx.fillStyle = c1 || text; cx.fillText(l1, tx, y);
+    if (l2) { cx.fillStyle = c2 || dim; cx.fillText(l2, tx, y+13); }
+  };
+  const body = (p, col) => {
+    cx.fillStyle = col || text; cx.beginPath(); cx.arc(X(p[0]),Y(p[1]),4,0,7); cx.fill();
+    cx.strokeStyle = col || text; cx.globalAlpha = .5; cx.beginPath(); cx.arc(X(p[0]),Y(p[1]),9,0,7); cx.stroke(); cx.globalAlpha = 1;
+  };
+
+  /* Zeta² Reticuli and LV-426 stay off the map until the source is located */
+  if (found) {
+    const zx = X(LV[0]+.035), zy = Y(LV[1]-.03), g = cx.createRadialGradient(zx,zy,0,zx,zy,20);
+    g.addColorStop(0, amber); g.addColorStop(1, "rgba(0,0,0,0)");
+    cx.globalAlpha = .4; cx.fillStyle = g; cx.beginPath(); cx.arc(zx,zy,20,0,7); cx.fill(); cx.globalAlpha = 1;
+    cx.fillStyle = text; cx.beginPath(); cx.arc(zx,zy,1.8,0,7); cx.fill();
+  }
+
+  let ship;
+  if (!heard) {
+    const [i,p] = at(LEG1, f/fI); ship = p;
+    poly(LEG1.pts.slice(0,i+1), amber, 2);
+    poly(LEG1.pts.slice(i).concat(REST.pts), dim, 1.2, [4,5]);
+  } else if (!found) {
+    ship = D;
+    poly(LEG1.pts, amber, 2);
+    poly(REST.pts, dim, 1.2, [4,5], .6);
+    /* triangulation: the bearing to the source narrows until it is located */
+    const q = clamp01((now - INTERCEPT) / (ORIGIN - INTERCEPT));
+    const dx = X(D[0]), dy = Y(D[1]);
+    const base = Math.atan2(Y(LV[1]) - dy, X(LV[0]) - dx) + (1-q) * .35 * Math.sin(now/4000);
+    const half = (40 - 34*q) * Math.PI/180, r = Math.hypot(X(LV[0])-dx, Y(LV[1])-dy) * 1.35;
+    cx.save(); cx.fillStyle = alert; cx.globalAlpha = .08; cx.beginPath(); cx.moveTo(dx,dy); cx.arc(dx,dy,r,base-half,base+half); cx.closePath(); cx.fill();
+    cx.globalAlpha = .7; cx.strokeStyle = alert; cx.lineWidth = 1; cx.setLineDash([3,4]); cx.beginPath();
+    cx.moveTo(dx,dy); cx.lineTo(dx+r*Math.cos(base-half), dy+r*Math.sin(base-half));
+    cx.moveTo(dx,dy); cx.lineTo(dx+r*Math.cos(base+half), dy+r*Math.sin(base+half)); cx.stroke(); cx.restore();
+    label(dx + r*.55*Math.cos(base) + 8, dy + r*.55*Math.sin(base), "BEARING", "TRIANGULATING", "left", alert);
+  } else {
+    poly(LEG1.pts, amber, 2);
+    poly(REST.pts, dim, 1, [2,6], .4);
+    const [i,p] = at(LEG2, (f-fO)/(1-fO)); ship = p;
+    poly(LEG2.pts.slice(0,i+1), amber, 2);
+    poly(LEG2.pts.slice(i), dim, 1.2, [4,5]);
+  }
+
+  WAYPOINTS.forEach(d => {
+    const ff = frac(d);
+    if (ff >= fI && ff < fO) return;            /* none drawn while holding position */
+    if (ff >= fI && !found) return;              /* the diverted leg stays hidden until the source is located */
+    const q = posAt(ff); cx.fillStyle = ff <= f ? amber : dim; cx.fillRect(X(q[0])-2, Y(q[1])-2, 4, 4);
+  });
+
+  body(ORIG[0]); label(X(ORIG[0][0])+6, Y(ORIG[0][1])-30, "THEDUS", "DEP " + mapDate(DEPART), "right");
+  body(ORIG[3], found ? dim : text);
+  label(X(ORIG[3][0])-6, Y(ORIG[3][1])-30, "SOL · EARTH", !heard ? "DESTINATION" : found ? "COURSE ABANDONED" : "COURSE INTERRUPTED", "left", found ? dim : text, heard ? alert : dim);
+  if (heard) {
+    cx.strokeStyle = alert; cx.lineWidth = 1.2; const dx = X(D[0]), dy = Y(D[1]);
+    cx.beginPath(); cx.moveTo(dx-5,dy-5); cx.lineTo(dx+5,dy+5); cx.moveTo(dx+5,dy-5); cx.lineTo(dx-5,dy+5); cx.stroke();
+    label(dx+12, dy+22, "UNKNOWN TRANSMISSION", mapDate(INTERCEPT), "left", alert);
+  }
+  if (found) { body(LV); label(X(LV[0])-16, Y(LV[1])+2, "LV-426", "ZETA² RETICULI", "right"); }
+
+  const mx = X(ship[0]), my = Y(ship[1]), shipCol = heard && !found ? alert : amber;
+  const pulse = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : (now/1000 % 2)/2;
+  cx.strokeStyle = shipCol; cx.lineWidth = 1; cx.globalAlpha = 1 - pulse; cx.beginPath(); cx.arc(mx,my,6+pulse*12,0,7); cx.stroke(); cx.globalAlpha = 1;
+  cx.shadowColor = shipCol; cx.shadowBlur = 10; cx.fillStyle = shipCol; cx.beginPath(); cx.arc(mx,my,4.5,0,7); cx.fill(); cx.shadowBlur = 0;
+  const right = mx > w-110;
+  label(mx + (right ? -12 : 12), my + (f < .12 ? 22 : -12), heard && !found ? "NOSTROMO · HOLDING" : "NOSTROMO", "", right ? "right" : "left", shipCol);
+
+  const A = s => `<b style="color:var(--alert)">${s}</b>`;
+  setHTML("eta-dest", !heard ? 'Dest <b>Sol</b> · Return course' : !found ? `Dest ${A("Unknown")} · ${A("Course interrupted")}` : `Dest <b>LV-426</b> · ${A("Course diverted")}`);
+  const ph = phaseAt(now);
+  if (ph !== "landed") setHTML("cd-note", {
+    cruise: "ETA 17:00 · Sat 24 Apr 2027 · Hypersleep in progress",
+    unknown: "Crew revived · Locating source of transmission",
+    transit: "ETA 17:00 · Sat 24 Apr 2027 · Crew in hypersleep · Transit to LV-426",
+    approach: "ETA 17:00 · Sat 24 Apr 2027 · Crew revived · Final approach"
+  }[ph]);
+  setHTML("course-to", found ? "LV-426" : "Sol");
+  setHTML("map-pct", (f*100).toFixed(f < .1 ? 3 : 1) + "%");
+  setHTML("map-status", !heard ? '<b>On course</b>' : found ? A("Diverted") : A("Interrupted"));
+}
+window.addEventListener("resize", drawMap);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawMap);
+
+
+/* Telemetry monitor. Opens full screen from the "View telemetry" button, or as an overlay at #telemetry. */
+const tel = document.getElementById("tel"), telMap = document.getElementById("tel-map");
+telMap.dataset.big = "1"; MAPS.push(telMap);
+const $ = id => document.getElementById(id);
+let telOpen = false, telTimer = null, raf = null, wakeLock = null, idleT = null;
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+
+const ROWS = [
+  ["drive","Drive output","%"],["reactor","Reactor core","%"],["hull","Hull temp","°C"],["cabin","Cabin temp","°C"],
+  ["o2","Atmosphere O₂","%"],["co2","Atmosphere CO₂","%"],["grav","Gravity","g"],["trav","Course traversed","%"]
+];
+$("t-rows").innerHTML = ROWS.map(r => `<div class="t-row" id="r-${r[0]}"><span>${r[1]}</span><b id="v-${r[0]}">--</b><i></i></div>`).join("");
+$("t-pods").innerHTML = Array.from({length:7}, (_,i) => `<div class="pod occ">${i+1}</div>`).join("");
+
+const wob = (t, base, amp, sp, ph) => base + amp*Math.sin(t*sp + ph) + amp*.45*Math.sin(t*sp*2.7 + ph*3);
+const setRow = (id, val, digits, unit, pct, alertOn) => {
+  const r = $("r-"+id); $("v-"+id).textContent = val.toFixed(digits) + " " + unit;
+  r.style.setProperty("--v", Math.max(0, Math.min(100, pct)) + "%"); r.classList.toggle("al", !!alertOn);
+};
+
+let tickTarget = "", typed = 0, tickAlert = false;
+function telUpdate(){
+  const now = new Date(), ms = Math.max(0, LAUNCH - now), s = Math.floor(ms/1000), t = now/1000;
+  const ph = phaseAt(now), heard = now >= INTERCEPT, found = now >= ORIGIN, landed = ph === "landed", awake = crewAwake(now), f = frac(now);
+  $("t-d").textContent = pad(Math.floor(s/86400),3); $("t-h").textContent = pad(Math.floor(s%86400/3600),2);
+  $("t-m").textContent = pad(Math.floor(s%3600/60),2); $("t-sec").textContent = pad(s%60,2);
+  $("t-clock").textContent = `${pad(now.getHours(),2)}:${pad(now.getMinutes(),2)}:${pad(now.getSeconds(),2)}`;
+  $("t-date").textContent = fmtDate(now);
+  $("t-pct").textContent = (f*100).toFixed(2) + "%";
+  const dest = $("t-dest"); dest.textContent = found ? "LV-426" : heard ? "Unknown" : "Sol"; dest.className = heard && !found ? "al" : "";
+  const c = $("t-course");
+  c.textContent = { cruise:"Return course", unknown:"Course interrupted", transit:"Course diverted", approach:"Course diverted", landed:"Surface contact" }[ph];
+  c.className = heard ? "al" : "";
+
+  const drive = { cruise: wob(t,98.2,.35,.23,0), unknown: wob(t,4.2,.6,.4,1), transit: wob(t,97.6,.4,.21,2), approach: wob(t,64,1.4,.31,1), landed: 0 }[ph];
+  const reactor = wob(t, landed ? 41 : ph === "unknown" ? 62 : 93.5, 1.1, .17, 2);
+  const hull = landed ? wob(t,-48,1.5,.05,1) : wob(t,-162,1.8,.04,0);
+  const cabin = awake ? wob(t,21.2,.15,.09,0) : wob(t,4.1,.1,.08,0);
+  const o2 = wob(t,20.9,.04,.21,1), co2 = awake ? wob(t,.31,.02,.13,2) : wob(t,.041,.003,.11,2);
+  setRow("drive", drive, 1, "%", drive);
+  setRow("reactor", reactor, 1, "%", reactor);
+  setRow("hull", hull, 1, "°C", (hull+200)/2.2);
+  setRow("cabin", cabin, 1, "°C", cabin/30*100);
+  setRow("o2", o2, 2, "%", o2/25*100);
+  setRow("co2", co2, 3, "%", co2/0.5*100);
+  setRow("grav", landed ? .86 : wob(t,.98,.002,.4,0), 2, "g", 80);
+  setRow("trav", f*100, 2, "%", f*100);
+  const sys = $("t-sys");
+  sys.textContent = { cruise:"Nominal", unknown:"Interrupted", transit:"Diverted", approach:"Diverted", landed:"Landed" }[ph];
+  sys.className = heard ? "al" : "";
+  $("t-drive").textContent = { cruise:"Cruise", unknown:"Station keeping", transit:"Cruise", approach:"Decel burn", landed:"Shut down" }[ph];
+
+  const sig = $("t-sigtxt");
+  sig.textContent = { cruise:"No contact", unknown:"Unknown origin · Triangulating", transit:"Source: LV-426", approach:"Repeating · 12 s interval", landed:"Repeating · 12 s interval" }[ph];
+  sig.className = heard ? "al" : "";
+  document.querySelectorAll(".pod").forEach(p => p.classList.toggle("occ", !awake));
+  $("t-podtxt").textContent = landed ? "0/7 · Landing party" : awake ? "0/7 · Crew revived" : found ? "7/7 · Transit hypersleep" : "7/7 occupied";
+
+  const sinceI = now - INTERCEPT, sinceO = now - ORIGIN, flash = (t % 60) < 12;
+  const al = $("t-alert");
+  if (sinceO >= 0 && sinceO < 72*3600e3) { $("t-al1").textContent = "Source located"; $("t-al2").textContent = "Planetoid LV-426 · Zeta² Reticuli"; $("t-al3").textContent = "Course plotted · Company contract requires investigation"; al.hidden = !flash; }
+  else if (sinceI >= 0 && sinceI < 72*3600e3) { $("t-al1").textContent = "Priority interrupt"; $("t-al2").textContent = "MU/TH/UR has interrupted the course of our journey"; $("t-al3").textContent = "Transmission of unknown origin · Crew revived"; al.hidden = !flash; }
+  else al.hidden = true;
+
+  const shown = LOG.filter(e => e[0] <= now);
+  const pick = shown[shown.length - 1 - (Math.floor(t/12) % Math.min(3, shown.length))] || ["", "Awaiting instructions."];
+  if (pick[1] !== tickTarget) { tickTarget = pick[1]; typed = 0; tickAlert = !!pick[2]; $("t-tickwrap").classList.toggle("al", tickAlert); }
+}
+
+function scopes(){
+  const t = (Date.now()/1000) % 120000, nowD = new Date(), ph = phaseAt(nowD), div = nowD >= INTERCEPT, landed = ph === "landed";
+  const amber = css("--amber"), alert = css("--alert"), grid = "#1d221e";
+  const prep = cvs => {
+    const dpr = window.devicePixelRatio || 1, w = cvs.clientWidth, h = cvs.clientHeight;
+    if (!w || !h) return null;
+    if (cvs.width !== Math.round(w*dpr) || cvs.height !== Math.round(h*dpr)) { cvs.width = Math.round(w*dpr); cvs.height = Math.round(h*dpr); }
+    const g = cvs.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+    g.strokeStyle = grid; g.lineWidth = 1;
+    for (let i=1;i<10;i++){ g.beginPath(); g.moveTo(i*w/10,0); g.lineTo(i*w/10,h); g.stroke(); }
+    for (let i=1;i<4;i++){ g.beginPath(); g.moveTo(0,i*h/4); g.lineTo(w,i*h/4); g.stroke(); }
+    return [g,w,h];
+  };
+  const trace = (g, w, h, col, fn) => {
+    g.strokeStyle = col; g.lineWidth = 1.6; g.shadowColor = col; g.shadowBlur = 8; g.beginPath();
+    for (let x=0; x<=w; x+=2){ const y = h/2 - fn(x/w)*h*.42; x ? g.lineTo(x,y) : g.moveTo(x,y); }
+    g.stroke(); g.shadowBlur = 0;
+  };
+  let a = prep($("t-wave"));
+  if (a) { const [g,w,h] = a; const amp = { cruise:1, unknown:.18, transit:.95, approach:.7, landed:.05 }[ph];
+    trace(g,w,h,amber, u => amp*(.55*Math.sin(u*22 - t*3.1) + .25*Math.sin(u*57 - t*5.3) + .12*Math.sin(u*131 + t*2.2))); }
+  a = prep($("t-sig"));
+  if (a) { const [g,w,h] = a;
+    trace(g,w,h, div ? alert : amber, u => {
+      const ts = t - (1-u)*15, noise = .08*Math.sin(ts*91.7)*Math.sin(ts*37.3) + .05*Math.sin(ts*213.1);
+      if (!div) return noise;
+      const ph = ((ts % 12) + 12) % 12, env = ph < 1.6 ? Math.sin(ph/1.6*Math.PI) : 0;
+      return noise + env*.9*Math.sin(ts*38)*Math.sin(ts*7.3);
+    }); }
+  if (typed < tickTarget.length) { typed = Math.min(tickTarget.length, typed + 1); $("t-tick").textContent = tickTarget.slice(0, typed); }
+  raf = requestAnimationFrame(scopes);
+}
+
+function wake(){ tel.classList.remove("idle"); clearTimeout(idleT); idleT = setTimeout(() => tel.classList.add("idle"), 3000); }
+function goFull(){
+  if (fsEl()) return;
+  const req = tel.requestFullscreen || tel.webkitRequestFullscreen;
+  if (!req) return;
+  try { const r = req.call(tel); if (r && r.catch) r.catch(() => {}); } catch(e) {}
+}
+function openTel(full){
+  tel.hidden = false; telOpen = true; document.documentElement.style.overflow = "hidden";
+  if (full) goFull();
+  try { navigator.wakeLock?.request("screen").then(l => wakeLock = l).catch(() => {}); } catch(e) {}
+  telUpdate(); drawMap(); clearInterval(telTimer); telTimer = setInterval(telUpdate, 500);
+  cancelAnimationFrame(raf); raf = requestAnimationFrame(scopes); wake();
+}
+function closeTel(){
+  if (!telOpen) return;
+  telOpen = false; tel.hidden = true; document.documentElement.style.overflow = "";
+  clearInterval(telTimer); cancelAnimationFrame(raf);
+  try { wakeLock?.release(); } catch(e) {} wakeLock = null;
+  if (fsEl()) { const x = document.exitFullscreen || document.webkitExitFullscreen; try { const r = x.call(document); if (r && r.catch) r.catch(() => {}); } catch(e) {} }
+  if (location.hash === "#telemetry") history.replaceState(null, "", location.pathname + location.search);
+  $("tel-open").focus();
+}
+$("tel-open").addEventListener("click", () => openTel(true));
+$("tel-close").addEventListener("click", e => { e.stopPropagation(); closeTel(); });
+tel.addEventListener("click", goFull);
+["mousemove","touchstart","keydown"].forEach(ev => tel.addEventListener(ev, wake, {passive:true}));
+const fsChange = () => { tel.classList.toggle("fs", !!fsEl()); if (!fsEl() && telOpen && tel.dataset.wasFs) closeTel(); tel.dataset.wasFs = fsEl() ? "1" : ""; setTimeout(drawMap, 60); };
+document.addEventListener("fullscreenchange", fsChange);
+document.addEventListener("webkitfullscreenchange", fsChange);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && telOpen && !fsEl()) closeTel(); });
+document.addEventListener("visibilitychange", () => { if (telOpen && document.visibilityState === "visible") { try { navigator.wakeLock?.request("screen").then(l => wakeLock = l).catch(() => {}); } catch(e) {} } });
+if (location.hash === "#telemetry") openTel(false);
+
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>
