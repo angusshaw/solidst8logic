@@ -296,6 +296,9 @@ footer{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--d
 
 <script>
 /* Mission timeline */
+const PING_S = 3;      /* seconds between marker pulses and pings */
+const TYPE_CPS = 22;   /* MU/TH/UR typing speed, characters per second */
+let lastTyped = 0;
 const DEPART = new Date(2026,3,26,0,0,0);                                /* Alien Day 2026: Nostromo leaves Thedus for Earth */
 const LAUNCH = new Date(2027,3,24,17,0,0);                               /* feature one starts: touchdown */
 const INTERCEPT = new Date(DEPART.getTime() + (LAUNCH - DEPART) / 2);    /* halfway: transmission of unknown origin */
@@ -517,7 +520,7 @@ function drawMapOne(){
   if (found) { body(LV); label(X(LV[0])-16, Y(LV[1])+2, "LV-426", "ZETA² RETICULI", "right"); }
 
   const mx = X(ship[0]), my = Y(ship[1]), shipCol = heard && !found ? alert : amber;
-  const pulse = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : (now/1000 % 2)/2;
+  const pulse = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : (now/1000 % PING_S)/PING_S;
   cx.strokeStyle = shipCol; cx.lineWidth = 1; cx.globalAlpha = 1 - pulse; cx.beginPath(); cx.arc(mx,my,6+pulse*12,0,7); cx.stroke(); cx.globalAlpha = 1;
   cx.shadowColor = shipCol; cx.shadowBlur = 10; cx.fillStyle = shipCol; cx.beginPath(); cx.arc(mx,my,4.5,0,7); cx.fill(); cx.shadowBlur = 0;
   const right = mx > w-110;
@@ -640,7 +643,8 @@ function scopes(){
       const ph = ((ts % 12) + 12) % 12, env = ph < 1.6 ? Math.sin(ph/1.6*Math.PI) : 0;
       return noise + env*.9*Math.sin(ts*38)*Math.sin(ts*7.3);
     }); }
-  if (typed < tickTarget.length) { typed = Math.min(tickTarget.length, typed + 1); $("t-tick").textContent = tickTarget.slice(0, typed); if (typed % 2) SND.typeTick(); }
+  const tnow = performance.now();
+  if (typed < tickTarget.length && tnow - lastTyped >= 1000/TYPE_CPS) { lastTyped = tnow; typed = Math.min(tickTarget.length, typed + 1); $("t-tick").textContent = tickTarget.slice(0, typed); if (tickTarget[typed-1] !== " ") SND.typeTick(); }
   raf = requestAnimationFrame(scopes);
 }
 
@@ -757,7 +761,7 @@ const SND = (() => {
   let nextPing = 0;
   setInterval(() => {
     if (!on || !ctx || ctx.state !== "running" || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const nowMs = Date.now(), boundary = Math.ceil(nowMs / 2000) * 2000;
+    const nowMs = Date.now(), boundary = Math.ceil(nowMs / (PING_S*1000)) * PING_S*1000;
     if (boundary === nextPing || boundary - nowMs > 400) return;
     nextPing = boundary;
     const d = new Date(boundary);
