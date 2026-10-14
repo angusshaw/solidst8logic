@@ -7,6 +7,7 @@
 <title>MU/TH/UR 6000</title>
 <meta name="description" content="Interface 2037. Crew access only.">
 <meta name="theme-color" content="#020703">
+<!-- WY SCI-DIV MAINTENANCE NOTE: interface 2037 science officer key HYPERDYNE-120A2. Remove before flight. -->
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="icon" href="../favicon.ico" sizes="48x48">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
@@ -60,13 +61,23 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:10;bac
 .foot a:hover,.foot button:hover,.foot a:focus-visible,.foot button:focus-visible{color:var(--bright);outline:none}
 .foot a::before{content:"< "}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* Ash: the Company channel renders in a pale, milky white */
+body.ash{--bright:#eef3ea;--text:#d5ddd1;--dim:#8a978a;--line:#2f3a30;--glow:rgba(238,243,234,.35)}
+body.ash .crt{background:#070a08}
+/* self-destruct: red alert, pulsing */
+body.destruct{--bright:#ff6a52;--text:#ffb6a8;--dim:#b8584a;--line:#5a1d16;--glow:rgba(255,106,82,.5)}
+body.destruct .crt{animation:redpulse 1s steps(2) infinite}
+@keyframes redpulse{0%{background:#160503}50%{background:#2a0805}}
+body.flash .crt{background:#fff;transition:background .08s}
+body.flash .crt *{visibility:hidden}
+@media (prefers-reduced-motion:reduce){body.destruct .crt{animation:none;background:#200604}}
 @media (max-width:520px){.lights{grid-template-columns:repeat(16,minmax(0,1fr))}.lights i:nth-child(n+17){display:none}.crt{border-radius:18px}}
 @media (prefers-reduced-motion:reduce){body::after,.cur{animation:none!important}}
 </style>
 </head>
 <body>
 <div class="crt">
-  <div class="bar"><span>MU/TH/UR 6000 · <b>Interface 2037</b></span><span>Nostromo 180924609 · <span id="clock">--:--</span></span></div>
+  <div class="bar"><span>MU/TH/UR 6000 · <b id="chan">Interface 2037</b></span><span>ID: <b id="ident">Unidentified</b> · <span id="clock">--:--</span></span></div>
   <div class="lights" id="lights" aria-hidden="true"></div>
   <div class="log" id="log" aria-hidden="true"></div>
   <form class="prompt" id="form" autocomplete="off">
@@ -81,7 +92,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:10;bac
 <script>
 /* Paste your Cloudflare Worker address here, e.g. https://mother.YOURNAME.workers.dev
    Left empty, the terminal runs in offline mode with a few canned replies so you can preview it. */
-const API_URL = "https://mother.angus-shaw.workers.dev";
+const API_URL = "";
 
 const TYPE_CPS = 40;           /* MU/TH/UR typing speed for replies, characters per second */
 const CODE_KEY = "nostromo-crew-code", AUDIO_KEY = "nostromo-audio";
@@ -167,25 +178,44 @@ function stopThinking() { if (thinking) { clearInterval(thinking._t); thinking.r
 function setBusy(b) { busy = b; $("send").disabled = b; input.readOnly = b; }
 function setMode(m) {
   mode = m;
-  $("qlabel").textContent = m === "code" ? "Code:" : ">";
-  input.placeholder = m === "code" ? "" : "Enter inquiry";
-  input.setAttribute("aria-label", m === "code" ? "Crew access code" : "Inquiry for MU/TH/UR");
+  $("qlabel").textContent = m === "code" ? "Code:" : m === "pass" ? "Passcode:" : ">";
+  input.placeholder = m === "chat" ? "Enter inquiry" : "";
+  input.setAttribute("aria-label", m === "code" ? "Crew access code" : m === "pass" ? "Science division passcode" : "Inquiry for MU/TH/UR");
   input.value = ""; input.focus({ preventScroll: true });
 }
 
 /* relay */
-async function relay(messages) {
-  if (!API_URL) return offline(messages);
-  const r = await fetch(API_URL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code, messages }) });
+const AS_KEY = "nostromo-as", PASS_KEY = "nostromo-pass";
+const sess = {
+  get: k => { try { return sessionStorage.getItem(k); } catch(e) { return null; } },
+  set: (k, v) => { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch(e) {} }
+};
+let persona = sess.get(AS_KEY), personaPass = sess.get(PASS_KEY), who = null, guestWho = null, pendingAs = null;
+
+async function relay(messages, as = persona, pass = personaPass) {
+  if (!API_URL) return offline(messages, as, pass);
+  const r = await fetch(API_URL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code, as: as || undefined, pass: pass || undefined, messages }) });
   let data = {}; try { data = await r.json(); } catch(e) {}
   if (!r.ok) { const err = new Error(data.error || "upstream"); err.status = r.status; throw err; }
   return data;
 }
-function offline(messages) {
-  return new Promise(res => setTimeout(() => {
-    if (!messages.length) return res({ ok: true });
+
+/* offline preview: mirrors the relay's crew logins so the easter eggs can be tried before the relay exists */
+const FILM_OFFLINE = {
+  DALLAS: ["CAPTAIN", 1], KANE: ["EXECUTIVE OFFICER"], RIPLEY: ["WARRANT OFFICER", 1], ASH: ["SCIENCE OFFICER", 0, 1],
+  LAMBERT: ["NAVIGATOR"], PARKER: ["CHIEF ENGINEER"], BRETT: ["ENGINEERING TECHNICIAN"], JONES: ["SHIP'S CAT", 0, 0, 1]
+};
+function offline(messages, as, pass) {
+  return new Promise((res, rej) => setTimeout(() => {
+    if (!messages.length) {
+      if (!as) return res({ ok: true, rank: "CREW", name: "MEMBER", override: true });
+      const f = FILM_OFFLINE[as]; if (!f) { const e = new Error("unknown_crew"); e.status = 404; return rej(e); }
+      if (f[2] && String(pass || "").toUpperCase() !== "HYPERDYNE-120A2") { const e = new Error("passcode"); e.status = 401; return rej(e); }
+      return res({ ok: true, rank: f[0], name: as, override: !!f[1], ash: !!f[2], cat: !!f[3], film: true });
+    }
     const q = messages[messages.length - 1].content.toUpperCase();
-    const reply = /937/.test(q) ? "UNABLE TO CLARIFY."
+    const reply = /CHANCES/.test(q) ? "DOES NOT COMPUTE."
+      : /937/.test(q) ? (as === "ASH" ? "COMPANY CHANNEL OPEN. SPECIAL ORDER 937 AVAILABLE ON THIS CHANNEL." : "UNABLE TO CLARIFY.")
       : /STATUS|HOW/.test(q) ? "ALL SYSTEMS NOMINAL. CREW IN HYPERSLEEP. COURSE: SOL."
       : /WHEN|DATE|TIME|ETA/.test(q) ? "ARRIVAL 24 APRIL 2027. FEATURE ONE AT 17:00. CREW BOARDING AT 16:30."
       : "COMMUNICATIONS UPLINK OFFLINE. LOCAL MODE ONLY. RELAY NOT CONFIGURED.";
@@ -196,20 +226,45 @@ const ERR = {
   401: "ACCESS DENIED. CREW CODE NOT RECOGNIZED.",
   403: "INTERFACE LOCKED TO SHIP NETWORK. ACCESS DENIED.",
   429: "INTERFACE BUSY. STAND BY AND RETRY.",
+  locked_out: "TOO MANY INVALID CODES. INTERFACE LOCKED FOR 15 MINUTES.",
 };
 
+/* identity shown in the status bar and the Ash / cat looks */
+const idText = w => w && w.name ? `${w.rank ? w.rank + " " : ""}${w.name}`.toUpperCase() : "CREW MEMBER";
+function applyIdentity(w) {
+  who = w;
+  document.body.classList.toggle("ash", !!(w && w.ash));
+  $("chan").textContent = w && w.ash ? "Company channel · Science division" : "Interface 2037";
+  $("ident").textContent = w ? idText(w) : "Unidentified";
+}
+
 /* local commands */
-const HELP = "SUGGESTED INQUIRIES:\nSTATUS · CURRENT DESTINATION · TIME TO ARRIVAL\nMISSION SCHEDULE · UNIFORM REGULATIONS · SPECIAL ORDER 937\nCOMMANDS: HELP · CLEAR · LOG OFF";
+const HELP = "SUGGESTED INQUIRIES:\nSTATUS · CURRENT DESTINATION · TIME TO ARRIVAL\nMISSION SCHEDULE · UNIFORM REGULATIONS · SPECIAL ORDER 937\nCOMMANDS: HELP · CREW MANIFEST · CLEAR · LOG OFF";
+const MANIFEST = "NOSTROMO CREW MANIFEST:\nDALLAS · CAPTAIN\nKANE · EXECUTIVE OFFICER\nRIPLEY · WARRANT OFFICER\nASH · SCIENCE OFFICER\nLAMBERT · NAVIGATOR\nPARKER · CHIEF ENGINEER\nBRETT · ENGINEERING TECHNICIAN\nJONES · SHIP'S CAT\nCREW TERMINAL LOGIN: LOGIN <SURNAME>";
 
 async function boot() {
   setBusy(true);
   await typeOut("sys", "MU/TH/UR 6000 · Weyland-Yutani Corp\nShipboard management system online");
-  if (mode === "code") {
-    await typeOut("mother", "ENTER CREW ACCESS CODE.");
-    setBusy(false); setMode("code");
-  } else {
-    await ready();
+  if (mode === "code") return askCode();
+  /* returning crew: re-check the stored code so MU/TH/UR knows who is at the terminal */
+  startThinking();
+  try {
+    guestWho = await relay([], null, null);
+    let w = guestWho;
+    if (persona) { try { w = await relay([]); } catch(e) { persona = personaPass = null; sess.set(AS_KEY, null); sess.set(PASS_KEY, null); } }
+    stopThinking(); applyIdentity(w);
+    await typeOut("mother", greeting(w, true)); await ready();
+  } catch(err) {
+    stopThinking();
+    if (err.status === 401) { store.set(CODE_KEY, null); code = null; chirp(true); await typeOut("err", "ACCESS CODE REVOKED OR NOT RECOGNIZED."); return askCode(); }
+    await typeOut("err", ERR[err.message] || ERR[err.status] || "SIGNAL LOST. RETRY."); setBusy(false); setMode("chat");
   }
+}
+async function askCode() { applyIdentity(null); await typeOut("mother", "ENTER CREW ACCESS CODE."); setBusy(false); setMode("code"); }
+function greeting(w, returning) {
+  if (w && w.cat) return "FELINE DETECTED. KEYBOARD INPUT INCONSISTENT WITH HUMAN CREW.";
+  if (w && w.ash) return `${returning ? "IDENTITY CONFIRMED" : "SCIENCE DIVISION ACCESS GRANTED"}. ${idText(w)}. COMPANY CHANNEL OPEN.`;
+  return returning ? `IDENTITY CONFIRMED. ${idText(w)}.` : `ACCESS GRANTED. WELCOME ABOARD, ${idText(w)}.`;
 }
 async function ready() {
   chirp();
@@ -217,28 +272,62 @@ async function ready() {
   setBusy(false); setMode("chat");
 }
 
+async function crewLogin(name, pass) {
+  setBusy(true); startThinking();
+  try {
+    const w = await relay([], name, pass);
+    stopThinking();
+    persona = name; personaPass = pass || null; sess.set(AS_KEY, persona); sess.set(PASS_KEY, personaPass);
+    history = []; applyIdentity(w); chirp(w.ash);
+    await typeOut("mother", greeting(w, false));
+  } catch(err) {
+    stopThinking(); chirp(true);
+    if (err.status === 404) await typeOut("err", `NO CREW MEMBER ${name} ON MANIFEST.`);
+    else if (err.message === "passcode") await typeOut("err", "PASSCODE INVALID. INCIDENT LOGGED.");
+    else await typeOut("err", ERR[err.message] || ERR[err.status] || "SIGNAL LOST. RETRY.");
+  }
+  setBusy(false); setMode("chat");
+}
+
 form.addEventListener("submit", async e => {
   e.preventDefault();
-  if (busy) return;
+  if (busy && mode !== "destruct") return;
   const raw = input.value.trim();
   if (!raw) return;
   ensureAudio();
   input.value = "";
 
+  if (mode === "destruct") { line("user", raw); destructInput(raw.toUpperCase()); return; }
+
   if (mode === "code") {
     line("user", "•".repeat(Math.min(raw.length, 12)));
     setBusy(true); startThinking();
     code = raw;
-    try { await relay([]); stopThinking(); store.set(CODE_KEY, code); await typeOut("mother", "ACCESS GRANTED. WELCOME ABOARD, CREW MEMBER."); await ready(); }
-    catch(err) { stopThinking(); code = null; chirp(true); await typeOut("err", ERR[err.status] || "SIGNAL LOST. RETRY."); setBusy(false); setMode("code"); }
+    try { guestWho = await relay([], null, null); stopThinking(); store.set(CODE_KEY, code); applyIdentity(guestWho); await typeOut("mother", greeting(guestWho, false)); await ready(); }
+    catch(err) { stopThinking(); code = null; chirp(true); await typeOut("err", ERR[err.message] || ERR[err.status] || "SIGNAL LOST. RETRY."); setBusy(false); setMode("code"); }
     return;
   }
 
-  const cmd = raw.toUpperCase();
+  if (mode === "pass") {
+    line("user", "•".repeat(Math.min(raw.length, 12)));
+    const name = pendingAs; pendingAs = null;
+    await crewLogin(name, raw.toUpperCase());
+    return;
+  }
+
+  const cmd = raw.toUpperCase().replace(/\s+/g, " ");
   line("user", raw);
   if (cmd === "HELP" || cmd === "?") { setBusy(true); await typeOut("mother", HELP); setBusy(false); input.focus(); return; }
+  if (/\b(MANIFEST|ROSTER)\b/.test(cmd) && !/GUEST|CAPTAIN|PASSENGER|RSVP|PARTY/.test(cmd) || /^(SHOW|LIST|DISPLAY|VIEW|ACCESS|OPEN|CHECK)?\s*(THE )?(SHIP'?S? )?(CREW|PERSONNEL)( LIST| FILES?| ROSTER)?\??$/.test(cmd)) { setBusy(true); await typeOut("mother", MANIFEST); setBusy(false); return; }
   if (cmd === "CLEAR" || cmd === "CLS") { log.innerHTML = ""; history = []; setBusy(true); await ready(); return; }
-  if (cmd === "LOG OFF" || cmd === "LOGOUT" || cmd === "EXIT") { logOff(); return; }
+  if (cmd === "LOG OFF" || cmd === "LOGOFF" || cmd === "LOGOUT" || cmd === "EXIT") { logOff(); return; }
+  const login = cmd.match(/^(?:LOGIN|LOG IN|LOGON|LOG ON|IDENTIFY(?: AS)?)\s+([A-Z']+)$/);
+  if (login) {
+    const name = login[1];
+    if (name === "ASH") { pendingAs = "ASH"; setBusy(true); chirp(); await typeOut("mother", "SCIENCE DIVISION. ENTER PASSCODE."); setBusy(false); setMode("pass"); return; }
+    await crewLogin(name); return;
+  }
+  if (/^(INITIATE )?(SELF[ -]?DESTRUCT|AUTO[ -]?DESTRUCT)( SEQUENCE)?$|^DESTRUCT( SEQUENCE)?$/.test(cmd)) { selfDestruct(); return; }
 
   history.push({ role: "user", content: raw });
   setBusy(true); startThinking();
@@ -247,22 +336,81 @@ form.addEventListener("submit", async e => {
     stopThinking();
     const reply = String(data.reply || "INSUFFICIENT DATA.").toUpperCase();
     history.push({ role: "assistant", content: reply });
-    chirp(/UNABLE TO CLARIFY|ACCESS RESTRICTED|ALERT/.test(reply));
+    chirp(/UNABLE TO CLARIFY|ACCESS RESTRICTED|ALERT|OVERRIDE/.test(reply));
     await typeOut("mother", reply);
   } catch(err) {
     stopThinking(); history.pop(); chirp(true);
-    if (err.status === 401) { store.set(CODE_KEY, null); code = null; await typeOut("err", ERR[401]); await typeOut("mother", "ENTER CREW ACCESS CODE."); setBusy(false); setMode("code"); return; }
-    await typeOut("err", ERR[err.status] || "SIGNAL LOST. RETRY.");
+    if (err.status === 401 && err.message !== "passcode") { store.set(CODE_KEY, null); code = null; await typeOut("err", ERR[401]); await askCode(); return; }
+    await typeOut("err", ERR[err.message] || ERR[err.status] || "SIGNAL LOST. RETRY.");
   }
   setBusy(false); input.focus({ preventScroll: true });
 });
 
 async function logOff() {
+  setBusy(true);
+  if (persona) {
+    persona = personaPass = null; sess.set(AS_KEY, null); sess.set(PASS_KEY, null); history = [];
+    await typeOut("mother", `CREW LOGIN TERMINATED. RETURNING TO ${idText(guestWho)}.`);
+    applyIdentity(guestWho); setBusy(false); setMode("chat"); return;
+  }
   store.set(CODE_KEY, null); code = null; history = [];
-  setBusy(true); await typeOut("mother", "SESSION TERMINATED."); await typeOut("mother", "ENTER CREW ACCESS CODE."); setBusy(false); setMode("code");
+  await typeOut("mother", "SESSION TERMINATED."); await askCode();
 }
 $("logout").addEventListener("click", () => { if (!busy) logOff(); });
+
+/* EASTER EGG: self-destruct. Command officers only. The abort window closes before detonation, as on the Nostromo. */
+let dTimer = null, dKlaxon = null, dLeft = 0, dLine = null;
+const D_TOTAL = 30, D_ABORT_CLOSES = 10;
+function klaxon() {
+  const a = ensureAudio(); if (!a || a.state !== "running") return;
+  const t = a.currentTime, lp = a.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1800; lp.connect(a.destination);
+  [[698, 0], [523, .3]].forEach(([f, off]) => {
+    const o = a.createOscillator(), g = a.createGain(); o.type = "square"; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t + off); g.gain.linearRampToValueAtTime(.05, t + off + .01); g.gain.setValueAtTime(.05, t + off + .26); g.gain.linearRampToValueAtTime(0, t + off + .28);
+    o.connect(g); g.connect(lp); o.start(t + off); o.stop(t + off + .3);
+  });
+}
+async function selfDestruct() {
+  setBusy(true);
+  if (!who || !who.override) { chirp(true); await typeOut("err", "AUTHORIZATION REQUIRED. COMMAND OFFICERS ONLY."); setBusy(false); return; }
+  document.body.classList.add("destruct");
+  klaxon(); dKlaxon = setInterval(klaxon, 1000);
+  await typeOut("err", "AUTOMATIC DESTRUCT SEQUENCE INITIATED.");
+  await typeOut("err", `THE OPTION TO OVERRIDE AUTOMATIC DETONATION EXPIRES IN T-MINUS ${D_TOTAL - D_ABORT_CLOSES} SECONDS. TYPE ABORT TO CANCEL.`);
+  dLeft = D_TOTAL; dLine = line("err", "");
+  const draw = () => { dLine.textContent = `DETONATION IN T-MINUS ${String(dLeft).padStart(2, "0")}${dLeft <= D_ABORT_CLOSES ? " · OVERRIDE EXPIRED" : ""}`; scroll(); };
+  draw();
+  setBusy(false); mode = "destruct"; $("qlabel").textContent = ">"; input.placeholder = "Type ABORT"; input.focus();
+  dTimer = setInterval(() => {
+    dLeft--; draw();
+    if (dLeft === D_ABORT_CLOSES) typeOut("err", "OPTION TO OVERRIDE HAS EXPIRED.");
+    if (dLeft <= 0) detonate();
+  }, 1000);
+}
+async function destructInput(cmd) {
+  if (!/ABORT|CANCEL|OVERRIDE|STOP/.test(cmd)) return;
+  if (dLeft > D_ABORT_CLOSES) {
+    endDestruct();
+    await typeOut("mother", "AUTOMATIC DESTRUCT SEQUENCE CANCELLED. ALL SYSTEMS NOMINAL.");
+    setBusy(false); setMode("chat");
+  } else {
+    chirp(true); await typeOut("err", "UNABLE TO COMPLY. OPTION TO OVERRIDE HAS EXPIRED.");
+  }
+}
+function endDestruct() { clearInterval(dTimer); clearInterval(dKlaxon); dTimer = dKlaxon = null; document.body.classList.remove("destruct"); }
+async function detonate() {
+  endDestruct(); setBusy(true);
+  document.body.classList.add("flash");
+  await new Promise(r => setTimeout(r, 1400));
+  document.body.classList.remove("flash");
+  log.innerHTML = "";
+  await typeOut("sys", "MU/TH/UR 6000 · Weyland-Yutani Corp\nShipboard management system online");
+  await typeOut("mother", "DETONATION SIMULATION COMPLETE. NOSTROMO INTACT. NO CREW WERE HARMED.\nSIMULATION LOGGED. THE COMPANY HAS BEEN NOTIFIED.");
+  await ready();
+}
+
 document.addEventListener("pointerdown", e => { if (!e.target.closest("a,button")) input.focus({ preventScroll: true }); });
+applyIdentity(null);
 boot();
 </script>
 </body>
